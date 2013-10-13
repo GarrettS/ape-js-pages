@@ -1,0 +1,164 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+   "http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-1" >
+    <title>DOM Traversal Test</title>
+
+    <link rel="stylesheet" type="text/css" href="../../yui-test/build/logger/assets/logger.css" >
+    <link rel="stylesheet" type="text/css" href="../../yui-test/build/yuitest/assets/yuitest.css" >
+    <link rel="stylesheet" type="text/css" href="../../yui-test/assets/testlogger.css" >
+
+    <script type="text/javascript" src="../../yui-test/build/yahoo-dom-event/yahoo-dom-event.js"></script>
+    <script type="text/javascript" src="../../yui-test/build/logger/logger.js"></script>
+    <script type="text/javascript" src="../../yui-test/build/yuitest/yuitest-beta.js"></script>
+
+    <script type="text/javascript" src="../../../build/APE.js"></script>
+    <script type="text/javascript" src="../../../build/dom/constants.js"></script>
+    <script type="text/javascript" src="../../../build/dom/traversal-f.js"></script>
+
+</head>
+<body style="position:relative;top: 10px">
+<div id="testLogger"></div>
+<div id="testNode"><form id="monkey" action=""><p><!-- form must have content to be valid--></p></form></div>
+<!--  comment is not an element. -->
+<div id="afterTestNode"></div>
+
+<div id="cont">
+<!--  html comment. -->
+
+    text 
+    <ul>
+        <li>test</li>
+        <li><span>hello</span></li>
+    </ul>
+    banana
+    <span>hey</span>
+    more text 
+    <a href="#">hi</a>.
+</div>
+
+
+<script type="text/javascript">
+setTimeout(function(){
+
+var dom = APE.dom,
+    Assert = YAHOO.util.Assert,
+    documentElement = document.documentElement,
+    body = document.body,
+    ds = documentElement.style,
+    bs = body.style,
+    cont = document.getElementById('cont'),
+    testNode = document.getElementById('testNode'),
+    afterTestNode = document.getElementById('afterTestNode'),
+    form = document.getElementById('monkey');
+
+var traversalTestCase = new YAHOO.tool.TestCase({
+    name : "Traversal Test Case",
+
+    testMethods : function() {
+        Assert.isTypeOf("function", dom.contains);
+        Assert.isTypeOf("function", dom.findAncestorWithAttribute);
+        Assert.isTypeOf("function", dom.findAncestorWithTagName);
+        Assert.isTypeOf("function", dom.findNextSiblingElement);
+        Assert.isTypeOf("function", dom.findPreviousSiblingElement);
+        Assert.isTypeOf("function", dom.getChildElements);
+    },
+
+    testContains : function() {
+        Assert.isTrue(dom.contains(body, testNode));
+    },
+    
+    testContainsParent : function() {
+        Assert.isFalse(dom.contains(testNode, body), 
+            "testNode can't contain body.");
+    },
+
+    testContainsSameEl : function() {
+        Assert.isFalse(dom.contains(body, body), "body cannot contain itself");
+    },
+    
+    testContainsIncludeElChildEl : function() {
+        Assert.isTrue(dom.isOrContains(body, testNode), 
+                "testNode can contain itself; includeEl is true");
+    },
+    
+    testContainsIncludeElSameEl : function() {
+        Assert.isTrue(dom.isOrContains(testNode, testNode), 
+                "testNode can contain itself; includeEl is true");
+    },
+    
+    testContainsIncludeElParent : function() {
+        Assert.isFalse(dom.isOrContains(testNode, body), 
+            "testNode can never contain body.");
+    },
+    
+    testFindAncestorWithAttributeFail : function() {
+        var ancestor = dom.findAncestorWithAttribute(testNode, "action");
+        Assert.isNull(ancestor);
+    },
+    
+    testFindAncestorWithAttribute : function() {
+        var ancestor = dom.findAncestorWithAttribute(testNode, "style");
+        Assert.areSame(body, ancestor);
+    },
+
+    testFindAncestorWithTagName : function() {
+        var ancestor = dom.findAncestorWithTagName(testNode, "html");
+        Assert.areSame(documentElement, ancestor);
+    },
+
+    testFindAncestorWithTagNameLimitAbove : function() {
+        var ancestor = dom.findAncestorWithTagName(testNode, "html", document.body);
+        Assert.isNull(ancestor);
+    },
+
+    testFindAncestorWithTagNameWithinLimit : function() {
+        var ancestor = dom.findAncestorWithTagName(testNode, "body", document.documentElement);
+        Assert.areSame(document.body, ancestor);
+    },
+
+    testFindAncestorWithTagNameAtLimit : function() {
+        // Body is not within body, so the result should be null.
+        var ancestor = dom.findAncestorWithTagName(testNode, "body", document.body);
+        Assert.isNull(ancestor);
+    },
+    
+    testFindAncestorWithTagNameUC : function() {
+        var ancestor = dom.findAncestorWithTagName(testNode, "BODY");
+        Assert.areSame(document.body, ancestor);
+    },
+
+    testDontFindAncestorWithTagName : function() {
+        var ancestor = dom.findAncestorWithTagName(testNode, "div");
+        Assert.isNull(ancestor);
+    },
+
+    testFindPreviousSiblingElement : function() {
+        var prev = dom.findPreviousSiblingElement(afterTestNode);
+        Assert.areSame(testNode, prev, "found " + prev.id);
+    },
+
+    testFindNextSiblingElement : function() {
+        var next = dom.findNextSiblingElement(testNode);
+        Assert.areEqual(afterTestNode, next);
+    },
+
+    testGetChildElements : function() {
+        var all = dom.getChildElements(cont);
+        Assert.areEqual(3, all.length);
+    }
+});
+
+var logger = new YAHOO.tool.TestLogger("testLogger");
+YAHOO.tool.TestRunner.add( traversalTestCase );
+
+// run the tests, or put them in the TestRunner.
+if (parent && parent != window) {
+    YAHOO.tool.TestManager.load();
+} else {
+    YAHOO.tool.TestRunner.run();
+}
+}, 100);</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+APE.dom.Event.getCoords=function(C){var D=APE.dom,B,A;if("pageX" in C){B=function(E){return{x:E.pageX,y:E.pageY}}}else{B=function(F){var E=D.getScrollOffsets();F=F||window.event;return{x:F.clientX+E.left,y:F.clientY+E.top}}}A=(D.Event.getCoords=B)(C);C=null;return A};

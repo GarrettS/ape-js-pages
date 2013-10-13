@@ -1,0 +1,47 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+    <title>Scroller</title>
+    <link rel="stylesheet" type="text/css" 
+        href="../../../build/widget/Scroller/Scroller.css" >
+        
+<style type="text/css">
+#s1Frame { 
+    width: 216px;
+    border: 3px double #69b;
+}
+
+#s1Container {
+    width: 254px;
+}
+</style>
+</head>
+<body>
+<div class="scrollerContainer" id="s1Container">
+<a id="s1Prev" class="scrollerButton scrollerButton-disabled" href="#prev">&laquo;</a>
+<div id="s1Frame" class="scrollerFrame">
+    <ul id="s1" class="scroller">
+    <li><div>item 0</div></li>
+    <li><div>item 1</div></li>
+    <li><div>item 2</div></li>
+    <li><div>item 3</div></li>
+    <li><div>item 4</div></li>
+    <li><div>item 5</div></li>
+    <li><div>item 6</div></li>
+    <li><div>item 7</div></li>
+    <li><div>item 8</div></li>
+    <li><div>item 9</div></li>
+    </ul>
+</div>
+<a id="s1Next" class="scrollerButton scrollerButtonNext" href="#next">&raquo;</a>
+</div>
+<script type="text/javascript" src="../../../build/APE.js"></script>
+<script type="text/javascript" src="../../../build/dom/Event.js"></script>
+<script type="text/javascript" src="../../../build/dom/classname-f.js"></script>
+<script type="text/javascript" src="../../../build/widget/Scroller/Scroller.js"></script>
+<script type="text/javascript">
+  var scroller = APE.widget.Scroller.getById('s1', 1000);
+</script>
+</body>
+</html>

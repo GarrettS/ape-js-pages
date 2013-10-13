@@ -1,0 +1,457 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+    <title>ajax.AsyncRequest Test</title>
+
+    <link rel="stylesheet" type="text/css" href="../../yui-test/build/logger/assets/logger.css">
+    <link rel="stylesheet" type="text/css" href="../../yui-test/assets/testlogger.css">
+
+    <script type="text/javascript" src="../../yui-test/build/yahoo-dom-event/yahoo-dom-event.js"></script>
+    <script type="text/javascript" src="../../yui-test/build/logger/logger.js"></script>
+    <script type="text/javascript" src="../../yui-test/build/yuitest/yuitest-beta.js"></script>
+
+    <script type="text/javascript" src="../../../build/APE.js"></script>
+    <script type="text/javascript" src="../../../build/ajax/ajax.js"></script>
+
+</head>
+<body>
+<div id="testLogger"></div>
+<script type="text/javascript">
+(function(){
+var Assert = YAHOO.util.Assert,
+    AsyncRequest = APE.ajax.AsyncRequest,
+    isSupported = AsyncRequest.isSupported(),
+    ignoreTest = location.protocol == "file:" || !isSupported;
+    // hrefStart = location.protocol + "//" + location.hostname + "/";
+
+    var asyncTestCase = new YAHOO.tool.TestCase({
+
+    name : "AsyncRequest Tests",
+
+    _should : {
+        ignore : {
+            testDone : ignoreTest,
+            testDoneFailure : ignoreTest,
+            testOnsucceed : ignoreTest,
+            testGetById : ignoreTest,
+            testConfigData : ignoreTest,
+            testAbort : ignoreTest,
+            testTimeout : ignoreTest,
+            testPostData : ignoreTest,
+            testPassFail : ignoreTest,
+            testFailSuccess : ignoreTest,
+            testSuccessNoOnabort : ignoreTest,
+            testSuccessNoOnfail : ignoreTest,
+            testSuccessResponseData : ignoreTest,
+
+            testNotSupported : isSupported
+        }
+    },
+    
+    setUp : function () {
+    },
+
+    tearDown : function(){
+        delete AsyncRequest.instances;
+    },
+    
+    //---------------------------------------------------------------------
+    // Test methods - names must begin with "test"
+    //---------------------------------------------------------------------
+
+    testAbort : function() {
+        var req = AsyncRequest.getById("", {action:"data.json.txt", method:"POST"} ),
+            data = null,
+            failed = false,
+            completed = false,
+            aborted = false;
+
+        req.onsucceed = function( response ) {
+            data = Function("return("+response.responseText+");")();
+        };
+        req.oncomplete = function( doneEvent ) {
+            completed = true;
+        };
+
+        req.onfail = function( response ) {
+            failed = true;
+        };
+
+        req.onabort = function( req ) {
+            // can't get response text in IE:
+            // "the data necessary to complete this operation is not yet available"
+            //('responseText'in response ? response.responseText : null);
+            aborted = true;
+        };
+
+        req.send();
+        req.abort();
+        this.wait(function(){
+            Assert.isTrue(completed, "completed");
+            Assert.isTrue(aborted, "aborted");
+            Assert.isFalse(failed, "failed");
+            Assert.isNull(data, "data");
+        }, 100);
+    },
+
+    testAbortMultipleSends : function(){
+        var req = AsyncRequest.getById("", {action:"process.jsp", method:"POST"} ),
+            scount = 0,
+            ccount = 0;
+    
+        req.onsucceed = function( response ) {
+            scount++;
+        };
+    
+        req.send(null, 1);
+        req.abort();
+        req.action += "?a";
+        req.send(null, 2);
+        req.abort();
+        this.wait(function(){
+            req.action +="&c";
+            req.send(3);
+            req.abort();
+            Assert.areSame(0, scount, 'onsucceed count should be 0');
+        }, 500);
+    },
+    
+    // make sure that oncomplete fires {successful: true}
+    testDone : function() {
+    
+        var req = AsyncRequest.getById("", {action:"data.json.txt", method:"GET"} ),
+            completed = false,
+            succeeded = false;
+
+        // When the request is done, resume the test.
+        req.oncomplete = function(e) {
+            completed = true;
+        };
+
+        req.onsucceed = function(e) {
+            succeeded = true;
+         };
+
+        // send the request.
+        req.send();
+
+        function segment(){
+            Assert.isTrue(completed, "completed");
+            Assert.isTrue(succeeded, "succeeded");
+        }
+        this.wait(segment, 2000);
+    },
+
+    // make sure that oncomplete fires with successful:false
+    // with a bad uri.
+    testDoneFailure : function(){
+        var completed = false;
+
+        var req = AsyncRequest.getById("", {action: "/invalid: does - not - exist", method:"GET"} );
+
+        req.oncomplete = function(doneEvent) {
+            completed = true;
+        };
+
+        req.send();
+
+        function isDone() { 
+            return completed;
+        }
+        
+        function oncompleteFired() {
+            Assert.isTrue(completed, "xhr did not complete. (this may be a server issue)");
+        }
+        
+        this.waitForCondition(isDone, oncompleteFired, 2000);
+    },
+
+    // make sure that onsucceed fires when it should.
+    testOnsucceed : function(){
+        var req = AsyncRequest.getById("", {action:"data.json.txt", method:"GET"} );
+
+        var succeeded = false;
+        // When the request is done, resume the test.
+        req.onsucceed = function(actualRequest) {
+            succeeded = true;
+        };
+
+        // send the request.
+        req.send(null, 2400);
+
+        function probablyDone() {
+            Assert.isTrue(succeeded, "xhr did not succeed.");
+        }
+        this.wait(probablyDone, 2500);
+    },
+
+    testSuccessResponseData : function() {
+        var req = AsyncRequest.getById("a", {action:"data.json.txt", method:"GET"} ),
+            data = {};
+        req.send(null, 2400);
+        req.onsucceed = function(actualRequest){
+            data = Function("return("+actualRequest.responseText +");")();
+        };
+        
+        function probablyDone(){
+            Assert.areEqual( "Garrett", data.name );
+        }
+        this.wait(probablyDone, 2500);
+    },
+
+    testIsSupported : function(){
+        Assert.isBoolean(isSupported);
+    },
+
+    testNotSupported : function(){
+        var req = AsyncRequest.getById("d", {action:"data.json.txt", method:"GET"} ),
+            failed;
+
+        req.onfail = function(){
+            failed = true;
+        };
+
+        req.send();
+        Assert.isTrue(failed);
+    },
+    
+    // make sure that onfail doesn't fire.
+    testSuccessNoOnfail : function(){
+        var req = AsyncRequest.getById("", {action:"data.json.txt", method:"GET"} ),
+            failed = false;
+
+        req.onfail = function() {
+            failed = true;
+        };
+        // send the request.
+        req.send(null, 2400);
+        function probablyLongEnough() {
+            Assert.isFalse(failed, "onfail fired, but should not have.");
+        }
+        this.wait(probablyLongEnough, 2500);
+    },
+
+    testConfigStringValue : function(){
+        var req = AsyncRequest.getById("", "data.json.txt" );
+        // send the request.
+        Assert.areSame("data.json.txt", req.uri);
+    },
+    
+    testGetWithQueryData : function(){
+        var req, err,
+        	queryData = "first=Aaron&last=Young";
+
+        req = AsyncRequest.getById("", "");
+
+        req.get("./process.jsp?"+queryData);
+
+        this.wait(function() {
+            Assert.areEqual("Young, Aaron", req.req.responseText);
+        }, 2000);
+    },
+    
+    testPostMethod : function(){
+        var req, err,
+            queryData = "first=Mike&last=Hunt";
+
+        req = AsyncRequest.getById("x", "./process.jsp");
+
+        req.post(queryData);
+
+        this.wait(function() {
+            Assert.areEqual("Hunt, Mike", req.req.responseText);
+        }, 2000);
+    },
+    
+    // make sure that onfail doesn't fire.
+    testSuccessNoOnabort : function(){
+        var req = AsyncRequest.getById("", {action:"data.json.txt", method:"GET"} ),
+            aborted = false;
+
+        req.onabort = function() {
+            aborted = true;
+        };
+        // send the request.
+        req.send(null, 2400);
+        req.oncomplete = function() {
+            completed = true;
+        };
+        function isDone() {
+            return completed;
+        }
+        
+        function didNotAbort() {
+            Assert.isFalse(aborted, "onabort fired, but should not have.");
+        }
+        
+        this.waitForCondition(isDone, didNotAbort, 2500);
+    },
+
+    testAbortBeforeSend : function() {
+        var req = AsyncRequest.getById("pussy", {action:"data.json.txt", method:"GET"} ),
+        acount = 0;
+        req.oncomplete = function(){
+            acount++;
+        };
+        req.abort();
+        Assert.areSame(0, acount); 
+    },
+    
+    testAbortFiresOncomplete : function() {
+        var req = AsyncRequest.getById("pussy", {action:"data.json.txt", method:"GET"} ),
+        acount = 0;
+        req.oncomplete = function(){
+            acount++;
+        };
+        req.send("bitch");
+        req.abort();
+        req.abort();
+        Assert.areSame(1, acount);
+    },
+    
+    // onsucceed should not fire with a bad URI.
+    testFailSuccess : function(){
+        var fired = false;
+        var req = AsyncRequest.getById("", {action: "/invalid: no - such - file", method:"GET"} );
+
+        // When the request is done, resume the test.
+        req.onsucceed = function(actualRequest) {
+            fired = true;
+        };
+
+        // send the request.
+        req.send();
+
+        // We only care to test that onsucceed did not fire.
+        function resume() {
+            Assert.isFalse(fired, "onsucceed fired, but should not have.");
+        }
+        this.wait(resume, 2400);
+    },
+
+    // make sure that onfail fires when it should.
+    testPassFail : function(){
+        var status = null;
+
+        var req = AsyncRequest.getById("", {action: "/invalid: no - such - file", method:"GET"} );
+
+        // When the request is done, resume the test.
+        req.onfail = function properFailure(actualRequest) {
+            status = actualRequest.status;
+        };
+
+        // send the request.
+        req.send();
+
+        // The request should have failed; it is an error if it didn't.
+        function didNotFail() {
+            Assert.isNotNull(200, "xhr did not fail, but should have.");
+            Assert.areNotEqual(200, status);
+        }
+        this.wait(didNotFail, 2400);
+    },
+
+    // Can we post data properly?
+    testPostData : function() {
+        var data = "first=Garrett&last=Smith";
+        var responseText = null;
+        var req = AsyncRequest.getById("", {action:"process.jsp", method:"POST"} );
+        req.onsucceed = function( xhr ) {
+            responseText = xhr.responseText;
+        };
+        
+        req.send( data );
+        
+        req.oncomplete = function() {
+            completed = true;
+        };
+        function isDone() {
+            return completed;
+        }
+        
+        this.waitForCondition(isDone, function() {
+            this.wait(function(){
+                Assert.areEqual("Smith, Garrett", responseText);
+            }, 100);
+        }, 2000);
+    },
+
+    // test timeout
+    testTimeout : function() {
+        var req = AsyncRequest.getById("", {action:"data.json.txt", method:"GET"} );
+        var timedOut = false;
+        var succeeded = false;
+        var completed = false;
+        var failed = false;
+
+        req.onsucceed = function succeed(xhr) {
+            succeeded = true;
+        };
+        req.onfail = function() {
+            Assert.fail("should not have failed.");
+        };
+        req.ontimeout = function() {
+            timedOut = true;
+        };
+        req.oncomplete = function() {
+            completed = true;
+        };
+        function isDone() {
+            return completed;
+        }
+        req.send(null, 1); // timeout immediately. Note: setting 0 will have no effect.
+        function didNotTimeout() {
+            Assert.isFalse(succeeded, "onsucceed should not have fired.");
+            Assert.isFalse(failed, "onfail should not have fired.");
+            Assert.isTrue(timedOut, "ontimeout should have fired, but did not.");
+            Assert.isTrue(completed, "completed should have fired, but did not.");
+        }
+        function isDone() {
+            return completed;
+        }
+        this.waitForCondition(isDone, didNotTimeout);
+    },
+
+    testTimeoutNotAfterComplete : function() {
+        var r = APE.ajax.AsyncRequest.getById("123", {action:"data.json.txt", method:"GET"}),
+            timeout = false, done;
+        r.oncomplete = function(){ done = true; };
+        r.ontimeout = function(){ timeout = true; };
+        r.send(null, 3000);
+        this.waitForCondition(isDone, noTimeout, 3100);
+        function isDone(){
+            return done;
+        } 
+        function noTimeout() {
+            Assert.isFalse(timeout, "req ontimeout fired, but should not have.");
+        }
+    },
+    
+    testToString : function() {
+        var req = AsyncRequest.getById("", {action:"data.json.txt", method:"POST" });
+        Assert.isTypeOf("string", req.toString());
+    },
+
+    testGetById : function() {
+        var config = {action:"data.json.txt", method:"POST"  };
+        var req = AsyncRequest.getById("12", config );
+        var req2 = AsyncRequest.getById("12", config );
+        Assert.areSame(req, req2);
+    }
+});
+
+//create the logger
+new YAHOO.tool.TestLogger("testLogger");
+YAHOO.tool.TestRunner.add(asyncTestCase );
+
+// run the tests, or put them in the TestRunner.
+if (parent != window && parent.YAHOO && parent.YAHOO.tool) {
+    YAHOO.tool.TestManager.load();
+} else {
+    YAHOO.tool.TestRunner.run();
+}
+})();</script>
+</body>
+</html>

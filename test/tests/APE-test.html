@@ -1,0 +1,381 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+    <title>APE Core Test</title>
+    <link rel="stylesheet" type="text/css" href="../yui-test/build/logger/assets/logger.css">
+    <link rel="stylesheet" type="text/css" href="../yui-test/assets/testlogger.css">
+    
+    <script type="text/javascript" src="../yui-test/build/yahoo-dom-event/yahoo-dom-event.js"></script>
+    <script type="text/javascript" src="../yui-test/build/logger/logger.js"></script>
+    <script type="text/javascript" src="../yui-test/build/yuitest/yuitest-beta.js"></script>
+
+    <script type="text/javascript" src="../../build/APE.js"></script>
+</head>
+<body>
+<div id="testLogger"></div>
+<script type="text/javascript">
+(function() {
+var util = YAHOO.util,
+    Assert = util.Assert,
+    ObjectAssert = util.ObjectAssert,
+    StringAssert = util.StringAssert;
+
+var apeTest = new YAHOO.tool.TestCase({
+
+    //name of the test case - if not provided, one is auto-generated
+    name : "APE tests",
+        
+    _should : {
+        // Patch to Object.prototype.hasOwnProperty for Opera
+        // cannot be tested in Safari < 2.0.2 because it is
+        // missing.
+        ignore : {
+            testHasOwnProperty : 
+                typeof Object.prototype.hasOwnProperty != "function"
+        }
+    },
+
+    testNamespace : function() {
+        APE.namespace("APE.test.pkg");
+        Assert.isNotNull(window.APE);
+        Assert.isNotNull(window.APE.test);
+        Assert.isNotNull(window.APE.test.pkg);
+        APE.namespace("APE.test.pkg2");
+        Assert.isNotNull(window.APE.test.pkg2, "pkg2 was not found.");
+    },
+
+    testNamespaceOther : function() {
+        APE.namespace("other");
+        YAHOO.util.Assert.isObject(window.other);
+    },
+    
+    testCreateSubclass : function() {
+        function Guitar() {}
+        Guitar.prototype = {
+            isPlayable : true,
+            whammyBar : undefined,
+            piezos : undefined,
+            numStrings : 6,
+            soundhole : {},
+            onplay : function(){},
+            toString : function() {
+                return"Guitar";
+            },
+            valueOf : function() {
+                return this.numStrings;
+            } 
+        }
+        function ElectricGuitar() {
+            this.make = "Ibanez";
+        }
+
+        var extendReturn = APE.createSubclass(ElectricGuitar, Guitar, {
+            whammyBar : document.title,
+            numStrings: 0,
+            soundhole : undefined,
+            constructor: "Yumi" 
+        });
+        return;
+        Assert.areSame(extendReturn, ElectricGuitar);
+
+        var testGuitar = new ElectricGuitar;
+
+        var allProps = ["isPlayable", "whammyBar", "piezos", 
+            "numStrings", "soundhole", "onplay",  "toString", "make"];
+        for(var i = 0; i < allProps.length; i++)
+            ObjectAssert.hasProperty(allProps[i], testGuitar);
+        
+        Assert.areSame(document.title, testGuitar.whammyBar, "whammyBar");
+        Assert.areSame(undefined, testGuitar.piezos, "piezos");
+        Assert.areSame( undefined, testGuitar.soundhole, "soundhole" );
+        Assert.areSame( 0, testGuitar.numStrings, "numStrings" );
+        Assert.areSame( "Guitar", testGuitar.toString(), "toString()" );
+        Assert.areSame( "Ibanez", testGuitar.make );
+        Assert.areNotSame( Guitar, testGuitar.constructor, "testGuitar had the wrong constructor.");
+        Assert.areSame( ElectricGuitar, testGuitar.constructor, "testGuitar had the wrong constructor.");
+        Assert.isInstanceOf( Guitar, testGuitar );
+        Assert.isInstanceOf( ElectricGuitar, testGuitar );
+        Assert.isUndefined(testGuitar["soundhole"], "soundhole should be undefined.");
+        ObjectAssert.hasProperty("soundhole", testGuitar, "soundhole should be present.");
+    },
+
+    testCreateMixin : function() {
+
+        function P() {
+            this.name = "Rika";
+            this.toString = function() {
+                return"P"+this.name;
+            }
+        }
+        P.prototype = { 
+            toString : function(){return"12";},
+            valueOf : function(){return"1";}
+        };
+
+        function Q() {
+            this.name = "Akina";
+            this.valueOf = function() {
+                return"Q" + this.name;
+            }
+        }
+        Q.prototype.toString = function() {
+            return this.name;
+        };
+        Q.prototype.nodef = true;
+        var mixed = APE.createMixin(new P, new Q);
+        Assert.areSame("PAkina", mixed.toString());
+        Assert.areSame("QAkina", mixed.valueOf());
+        ObjectAssert.doesNotHaveProperty("nodef", mixed);
+    },
+
+    testMixinOneArg : function() {
+        var o = {a:1};
+        var mixed = APE.createMixin(o);
+        Assert.areSame(o, mixed);
+    },
+    
+    testHasOwnProperty : function() {
+        // Embedded IE8+ reports `false` on indirect hasOwnProperty
+        // checks for global object or window object having a globally 
+        // defined variable.
+        // This happens in Sleipnir and in IETester IE9 and IE8.
+        // Using `self` works, but window and global both fail.
+        var isApe = Object.prototype.hasOwnProperty.call(self, "APE");
+        Assert.isTrue(isApe);
+    },
+
+    testToString : function() {
+        Assert.isString(APE.toString());
+    }
+});
+
+function C(id, config) { 
+    this.id = id;
+    if(typeof config === "object") {
+        this.i = config.i;
+        this.j = config.j;
+    }
+};
+var CNFactory;
+
+var testNode = document.createElement("u");
+
+testNode.id = "testCreational";
+document.body.appendChild(testNode);
+
+var creationalTest = new YAHOO.tool.TestCase({
+    
+    name : "APE creationalTest",
+    
+    _should : {
+        ignore : {
+    // deferError was extracted to EventPublisher, the only place used.
+            testDeferError : true  
+        }
+    },
+    
+    setUp : function(){
+        APE.defineFactory("C", function(){return C;});
+        CNFactory = APE.C;
+    },
+
+    tearDown : function() {
+        for(var prop in APE) {
+            // If it's a Factory, remove it.
+            if(APE[prop].getById) {
+                delete APE[prop];
+            }
+        }
+    },
+    
+    testGetByNode : function() {        
+        var c = CNFactory.getByNode(testNode, {i:7, j:1});
+        Assert.areSame(testNode.id, c.id, "testNode.id wrong.");
+        Assert.areSame(7, c.i, "i wrong.");
+        Assert.areSame(1, c.j, "j wrong.");
+    },
+
+    testCustomFactoryStaticMember : function(){
+        APE.defineCustomFactory("Aquabib", function(Aquabib) {
+                Aquabib.staticMember = "water";
+                return getConstructor;
+                function getConstructor() {
+                    function Aquabib(){};
+                }
+        });
+        Assert.areSame("water", APE.Aquabib.staticMember, "staticMember wrong.");
+    },
+    
+    testCustomFactoryCreateInstance : function(){
+        APE.defineCustomFactory("Aquabib", function(Aquabib) {
+                return getConstructor;
+                function getConstructor() {
+                    return Aquabib;
+                    function Aquabib(id){ this.id = id; };
+                }
+        });
+        var instance = APE.Aquabib.getById("exlineal");
+        Assert.areSame("exlineal", instance.id);
+    },
+    
+    testGetByNodeCreatesId : function(){
+       var d = document.createElement("div");
+       CNFactory.getByNode(d);
+       YAHOO.log("created id: " + d.id, "info", "TestRunner");
+       Assert.areNotSame("", d.id, "id was not generated dynamically.");
+    },
+
+    testGetByNodeTwiceSameId : function(){
+        var d = document.createElement("div");
+        var cnd = CNFactory.getByNode(d);
+        var id = cnd.id;
+
+        // Try to get d again - it should have the same id.
+        CNFactory.getByNode(d);
+        Assert.areSame(id, d.id);
+    },
+
+    testGetByNodeOtherNotSameId : function(){
+        var d = document.createElement("div");
+        CNFactory.getByNode(d);
+        
+        // Create a new one. It should have a unique ID.
+        var d2 = document.createElement("div");
+        var c = CNFactory.getByNode(d2);
+        Assert.areNotSame(d.id, d2.id);
+    },
+    
+    testGetByNodeNoIdAnonymousConstructor : function() {
+        function C(el, s) { 
+            this.s = s;
+            this.toString = function() { return el.id + ": " + s; }
+        }
+
+        APE.defineFactory(
+            "CFactory", 
+            function(){return C;}
+        );
+            
+        var c1 = APE.CFactory.getByNode(document.body, "foo"),
+            id1 = document.body.id,
+            c2 = APE.CFactory.getByNode(document.body, "foo"),
+            id2 = document.body.id;
+
+        Assert.areSame(id1, id2);
+        Assert.areSame(c1, c2);
+        Assert.isTypeOf("string", c1.s);
+        Assert.isTypeOf("string", document.body.id);
+    },
+    
+    testCreateFactory : function() {
+        APE.defineFactory( 
+            "CFactory", 
+            function(){return C;}
+        );
+        function getC() {
+            return C;
+        }
+        
+        var c = APE.CFactory.getById('c', 3);
+        var c2 = APE.CFactory.getById('c', 3);
+        Assert.areSame(c, c2);
+    },
+    
+    testCreateFactoryNode : function() {
+        var CF = APE.createFactory( 
+            "CFactory", 
+            function(){return C;}
+        );
+        
+        var c = CF.getById('c', 3);
+        var c2 = CF.getById({id:'c'}, 2);
+        Assert.areSame(c, c2);
+        
+    },
+
+    testDefineFactory : function(){
+        APE.namespace("foo").defineFactory( 
+                "CFactory", 
+                function(){return C;}
+            );
+        
+        var c = foo.CFactory.getById('c', 3);
+        Assert.isNotNull(c);
+    },
+    
+    testDeferError: function() {
+    // this will fail in Webkit (false fail), due to:
+    // https://bugs.webkit.org/show_bug.cgi?id=8519
+        var caughtError = false,
+            msg = "hey hey.";
+
+// http://bugs.webkit.org/show_bug.cgi?id=8519
+        var onerror = window.onerror;
+
+        // Next, wrap the error, so we can see if APE.deferError caught it.
+        window.onerror = deferErrorTestHandler;
+
+        function deferErrorTestHandler(argMsg) {
+            YAHOO.log("onerror caught message: " + argMsg,
+                    "info", "TestRunner");
+            caughtError = argMsg;
+            return true;
+        };
+        
+        YAHOO.log("deferError fails falsely in IE w/o Internet Option: \"Disable Script Debugging.\"", 
+                "info", "TestRunner");
+        // Now, fire the event, to run the above.
+        APE.deferError( Error( msg ) );
+
+        this.wait(deferredSegment, 10);
+
+        function deferredSegment(){
+            window.onerror = onerror;
+            YAHOO.log("using setTimeout for deferred error.", "info", "TestRunner");
+            // Make sure we caught the error and all callbacks fired.
+            Assert.areSame(msg, caughtError);
+        }
+    },
+    
+    testRedeclaredFactory : function() {
+        var thrown = false;
+        APE.namespace("APE.test");
+        APE.test.ass = 1;
+        try {
+            APE.test.defineFactory("ass", function(){});
+        } catch(ex) {
+            thrown = true;
+        }
+        Assert.isTrue(thrown, "defineFactory: Error was not thrown, but should have been.");
+    },
+
+    testRedeclaredCustomFactory : function() {
+        var thrown = false;
+        APE.namespace("APE.test");
+        APE.test.fudge = 1;
+        try {
+            APE.test.defineCustomFactory("fudge", function(){});
+        } catch(ex) {
+            thrown = true;
+        }
+        Assert.isTrue(thrown, "defineCustomFactory: Error should have been thrown.");
+    }
+});
+
+var logger = new YAHOO.tool.TestLogger("testLogger");
+
+YAHOO.tool.TestRunner.add( apeTest );
+YAHOO.tool.TestRunner.add( creationalTest );
+ //run the tests
+if (parent && parent != window) {
+    YAHOO.tool.TestManager.load();
+} else {
+    YAHOO.tool.TestRunner.run();
+}
+})();
+ </script>
+</body>
+
+</html>

@@ -1,0 +1,444 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+   "http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-1" >
+    <title>DOM Style Test</title>
+
+    <link rel="stylesheet" type="text/css" href="../../yui-test/build/logger/assets/logger.css" >
+    <link rel="stylesheet" type="text/css" href="../../yui-test/build/yuitest/assets/yuitest.css" >
+    <link rel="stylesheet" type="text/css" href="../../yui-test/assets/testlogger.css" >
+
+    <script type="text/javascript" src="../../yui-test/build/yahoo-dom-event/yahoo-dom-event.js"></script>
+    <script type="text/javascript" src="../../yui-test/build/logger/logger.js"></script>
+    <script type="text/javascript" src="../../yui-test/build/yuitest/yuitest-beta.js"></script>
+
+    <script type="text/javascript" src="../../../build/APE.js"></script>
+    <script type="text/javascript" src="../../../build/dom/StyleSheetAdapter.js"></script>
+    <script type="text/javascript" src="../../../build/dom/constants.js"></script>
+    <script type="text/javascript" src="../../../build/dom/style-f.js"></script>
+    <script type="text/javascript" src="../../../build/dom/getContainingBlock.js"></script>
+    <script type="text/javascript" src="../../../build/dom/getPixelCoords.js"></script>
+
+    <style id="testSheet" type="text/css">
+        #testNode {
+            font-size: 12px;
+            font-family: fantasy;
+            padding: 6em;
+            height: 1000em;
+        }
+    </style>
+
+</head>
+<body style="position: relative;margin:0;padding:0;">
+<div id="testLogger" style="margin-top: 30px"></div>
+
+<!-- In IE, a relatively positioned descendant gets position offset by font-size! -->
+<div id="container" style="position: absolute; top: 0; left: 0;font-size: 0;">
+    <!-- isInsideElement -->
+    <!-- 20 + 11 = 33 -->
+    <a id="overlapping" style='position: absoulte; top: 20px; right: 0; height: 0;border: 11px solid #ccc;background: #900'></a>
+ 
+    <!-- +12 -->
+        <div id="c1" style="position: absolute; top: 2px;height: 6px;background: #00c;left: 0;">
+    <!-- +3 -->
+        <a id="target" style='position: absolute; top: 3px; left: 1px;display: block;height: 1px; background:#FF0;'></a>
+
+        </div>
+
+        <div id="testNode"></div>
+
+ </div>
+<script type="text/javascript">
+window.onload = function(){
+    
+var container = document.getElementById("container"),
+    template = container.innerHTML,
+    containerCssText = container.style.cssText,
+    htmlCssText = document.documentElement.style.cssText,
+    bodyCssText = document.body.style.cssText,
+    dSheets = document.styleSheets,
+    styleSheet = dSheets[dSheets.length - 1],
+    sheet = new APE.dom.StyleSheetAdapter( styleSheet ),
+    rule = sheet.getRule("#testNode") || sheet.addRule( "#testNode", "" );
+
+var Assert = YAHOO.util.Assert,
+    TestCase = YAHOO.tool.TestCase,
+    ArrayAssert = YAHOO.util.ArrayAssert,
+    dom = APE.dom;
+
+/* StyleTransition.js uses these. 
+ * move to new file. 
+ * StyleTransition.js seems too generalized.
+getCascadedStyle : getCascadedStyle,
+getStyleUnit : getStyleUnit,
+findInheritedStyle : findInheritedStyle,
+*/
+
+var getStyleTestCase = new TestCase({
+
+    setUp : function() {
+    },
+
+    _should : {
+        ignore : { 
+            testGetComputedShorthandValues1pxFontSize : true,
+            testGetComputedShorthandValues100px : true,
+            
+            // http://ape.lighthouseapp.com/projects/27412/tickets/1-remove-support-for-getstyle-clip#ticket-1-1
+            //  remove support for getStyle "clip" 
+            testGetComputedClip : true,
+
+            // Opera rounds opacity .555 to .56, so, although that is
+            // a bug, it can be avoided by using precision of < 2 decimal 
+            // places.
+            //
+            // IE will read decimal, and even exponential notation,
+            // however it is uncertain if that is applied, as
+            // filters.opacity is truncated to int, e.g. "55", 
+            // not "55.5". 
+            // 
+            // The easiest solution is to ignore floating points with more 
+            // than two places. Fortunately, that is an edge case.
+            testGetFilterOpacityInheritedDecimal : true 
+            
+        }
+    },
+
+    tearDown : function () {
+        document.body.style.cssText = bodyCssText;
+        document.documentElement.style.cssText = htmlCssText;
+        container.style.cssText = containerCssText;
+        container.innerHTML = template;
+
+        var style = rule.style;
+
+        // Iterating through "length" in a for loop 
+        // returns camel-cased property names. 
+        // Use a for-in loop and swallow errors on things like functions or length,
+        // or "clip" for IE.
+        for(var prop in style) {
+            try{ 
+	          if(typeof style[prop] == 'string') {
+	            style[prop] = "";
+	          }
+            } catch(ex) { 
+                // IE will throw errors on "clip" if it is an empty string.
+                // alert("error setting " + prop + ex.message);
+            }
+        }
+        style = null;
+    },
+
+    name : "getStyle", 
+
+    testGetBodyColor : function() {
+        var color = dom.getStyle(document.body, "color");
+        ArrayAssert.contains(color, ["#000000", "rgb(0, 0, 0)", "rgb(0,0,0)"] );
+        YAHOO.log("color: " + color, 'info', "TestRunner"); 
+    },
+
+    testGetComputedOpacity : function() {
+        var target = document.getElementById("target"),
+            ts = target.style;
+        ts.position = "static";
+        ts.borderStyle = "none";
+        ts.borderWidth = "0px";
+        ts.height = ts.width = "auto";
+        dom.setOpacity(target, .1);
+        var op = dom.getStyle(target, "opacity");
+        Assert.areEqual(0.1, parseFloat(op), "opacity found was wrong." );
+    },
+
+    testGetHeightFromPercentage : function() {
+        var target = document.getElementById("target"),
+            ts = target.style,
+            container = target.parentNode,
+            cs = container.style;
+
+        cs.cssText = "height: 200px; position: relative; width: 100px";
+        ts.cssText = "height: 50%;position: absolute;font-size: 1px;display: block"
+
+        this.wait(function(){
+            var actual = dom.getStyle(target, "height");
+            Assert.areEqual("100px", actual, "height found was wrong." );
+        }, 50);
+    },
+    
+    testGetZIndexFromAuto : function() {
+        var target = document.getElementById("target"),
+            ts = target.style,
+            container = target.parentNode,
+            cs = container.style;
+
+        cs.cssText = "height: 200px; position: relative; width: 100px";
+        ts.cssText = "position: absolute"
+
+        this.wait(function(){
+            var actual = dom.getStyle(target, "zIndex");
+            Assert.areEqual("0", actual, "estimated zIndex was different." );
+        }, 50);
+    },
+    
+    testSetOpacity : function() {
+        var target = document.getElementById("target");
+        dom.setOpacity(target, .1);
+        var op = dom.getStyle(target, "opacity");
+        Assert.areEqual(0.1, parseFloat(op), "opacity found was wrong." );
+    },
+    
+    testGetFilterOpacity : function() {
+        var target = document.getElementById("target");
+        var alpha = "filter: progid:DXImageTransform.Microsoft.Alpha(   "
+                  + "       opacity    =   50  )";
+        var expected = .5;
+        if("filters" in target) {
+            target.style.cssText = alpha;
+        } else {
+            target.style.cssText = "opacity: .5";
+        }
+        var actual = +dom.getStyle(target, "opacity");
+        Assert.areSame(expected, actual);
+    },
+    
+    testGetFilterOpacity0 : function() {
+        var target = document.getElementById("target");
+        var alpha = "filter: alpha(   "
+                  + "       opacity    =   0  )",
+            expected = 0;
+        if("filters" in target) {
+            target.style.cssText = alpha;
+            target.style.zoom = "0";
+        } else {
+            target.style.cssText = "opacity: 0";
+        }
+        var actual = +dom.getStyle(target, "opacity");
+        Assert.areSame(expected, actual);
+    },
+
+    testGetFilterOpacityWithStartOpacity : function() {
+        var target = document.getElementById("target");
+        var alpha = "filter: alpha(startOpacity=10"
+                  + "       opacity    =   0  )",
+            expected = 0;
+        if("filters" in target) {
+            target.style.cssText = alpha;
+            target.style.zoom = "0";
+        } else {
+            target.style.cssText = "opacity: 0";
+        }
+        var actual = +dom.getStyle(target, "opacity");
+        Assert.areSame(expected, actual);
+    },
+
+    testGetFilterOpacityUnset : function() {
+        var target = document.getElementById("target"),
+            actual = dom.getStyle(target, "opacity"),
+            expected = "1";
+        Assert.areEqual(expected, actual);
+    },
+
+    testGetFilterOpacityInheritedDecimal : function() {
+        var testNode = document.getElementById( "testNode" ),
+            actual, expected = .555;
+        if('opacity' in rule.style)
+            rule.style.opacity = ""+expected;
+        else 
+            rule.style.filter = "alpha(Opacity= " + (100*expected) + ")";
+        actual = dom.getStyle(testNode, "opacity");
+        Assert.areEqual(expected, actual);
+    },
+
+    // Safari 2 fails this one, and the same problem 
+    // can be seen in StyleSheetAdapter-test.
+    testGetWidthFromAuto : function() {
+        var testNode = document.getElementById('testNode');
+        testNode.parentNode.style.width = "100px";
+        var actual = dom.getStyle(testNode, "width");
+        Assert.areEqual("100px", actual, "px");
+    },
+    
+    testGetComputedStyle : function() {
+        var ArrayAssert = YAHOO.util.ArrayAssert;
+
+        var testNode = document.getElementById( "testNode" );
+        rule.style.fontSize = "12px";
+        rule.style.fontFamily="serif";
+        rule.style.padding = "6em";
+        rule.style.height = "1000em";
+
+        this.wait(function(){
+            var foundFontSize = dom.getStyle(testNode, "fontSize" );
+            var foundPadding = dom.getStyle(testNode, "paddingBottom" );
+            var foundHeight = dom.getStyle(testNode, "height" );
+
+            if(parseFloat(foundHeight) == 12000 + (6 * 12 * 2))
+                YAHOO.log("browser included padding in height calculation.", "warn", "TestRunner");
+
+            Assert.areEqual( (6 * 12) + "px", foundPadding, 
+                "padding was set in em, and was either \nreturned wrong or miscalc'd by the browser." );
+            Assert.areEqual( (1000 * 12) + "px", foundHeight, 
+                "height was set in em, and was either \nreturned wrong or miscalc'd by the browser." );
+        }, 100);
+    },
+
+    testGetComputedClip : function() {
+        var testNode = document.getElementById( "testNode" );
+        rule.style.position = "absolute";
+
+        // This only works with px. It fails in IE with em,
+        // and fails in FF with em by returning clip(0 0 0 0); always.
+
+        rule.style.clip = "rect(12px 12px 10px 2px)";
+        var clip = dom.getStyle(testNode, "clip");
+        
+        Assert.areEqual("rect(12px 12px 10px 2px)", clip.toString().replace(/,/g, ""));
+        if(clip.top)
+            YAHOO.log("clip object found: {top: " + clip.top + ", right: " + clip.right + ", " +
+                "bottom: " + clip.bottom  + ", left: " + clip.left + "}", "info", "TestRunner");
+    },
+
+    testGetComputedBodyMarginFailure : function() {
+        document.body.style.marginBottom = "2.2in";
+        var mb = dom.getStyle(document.body, "marginBottom");
+        Assert.areNotEqual("2.2in", mb, "expected to fail in IE; IE does not support computed styles.");
+    },
+
+    testGetComputedBS : function() {
+        var target = document.getElementById("target");
+        var r = dom.getStyle(target, "bs");
+        Assert.areEqual("", r);
+    },
+    
+    testGetShorthandValues : function() {
+        var c1 = document.getElementById("c1"),
+            inp = "12px 11px 10px 9px";
+        c1.style.borderWidth = inp;
+        c1.style.borderStyle = "solid";
+        var out = dom.getStyle(c1, "borderWidth");
+        Assert.areEqual(inp, out);
+    },
+
+    testGetComputedShorthandValues1pxFontSize : function() {
+        var c1 = document.getElementById("c1"),
+            inp = "12em 11em 10em 9em";
+        c1.style.borderWidth = inp;
+        c1.style.borderStyle = "solid";
+        c1.style.fontSize = "2px";
+
+        var out = dom.getStyle(c1, "borderWidth");
+        Assert.areEqual(inp.replace(/em/g, "px"), out);
+    },
+
+    testGetComputedShorthandValues : function() {
+        var c1 = document.getElementById("c1"),
+            inp = "12em 11em 10em 9em";
+        c1.style.borderWidth = inp;
+        c1.style.borderStyle = "solid";
+        c1.style.fontSize = "10px";
+
+        var out = dom.getStyle(c1, "borderWidth");
+        Assert.areEqual(inp.replace(/em/g, "0px"), out);
+    },
+
+
+    testGetComputedShorthandValues100px : function() {
+        var c1 = document.getElementById("c1"),
+            inp = "120em 110em 100em 90.1em";
+        c1.style.borderWidth = inp;
+        c1.style.borderStyle = "solid";
+        c1.style.fontSize = "100px";
+
+        var cs = getComputedStyle(c1, "");
+        //alert(cs.fontSize);
+        //alert([cs.borderTopWidth, cs.borderRightWidth, cs.borderBottomWidth, cs.borderLeftWidth]);
+        var out = dom.getStyle(c1, "borderWidth");
+        Assert.areEqual("12000px 11000px 10000px 9010px", out);
+    },
+
+    testGetSmallComputedShorthandValues100px : function() {
+
+        var c1 = document.getElementById("c1"),
+            inp = "12em 11em 10em 9.11em";
+        c1.style.borderWidth = inp;
+        c1.style.borderStyle = "solid";
+        c1.style.fontSize = "100px";
+
+        // var cs = getComputedStyle(c1, "");
+        //alert(cs.fontSize);
+        //alert([cs.borderTopWidth, cs.borderRightWidth, cs.borderBottomWidth, cs.borderLeftWidth]);
+        var out = dom.getStyle(c1, "borderWidth");
+        Assert.areEqual("1200px 1100px 1000px 911px", out);
+    },
+
+    testGetCollapsedShorthandValues : function() {
+        var c1 = document.getElementById("c1"),
+            inp = "12px 12px 12px 12px";
+        c1.style.margin = inp;
+        var out = dom.getStyle(c1, "margin");
+        Assert.areEqual("12px", out);
+    }
+
+});
+
+var getContainingBlockTestCase = new TestCase({
+
+    tearDown : function() {
+	    var container = document.getElementById("container");
+	    container.innerHTML = template;
+    },
+
+    testGetContainingBlock : function() {
+	    var testNode = document.getElementById( "testNode" ),
+	        expected = document.getElementById('container'),
+	        cb = dom.getContainingBlock( testNode );
+	
+	    Assert.areEqual( container, cb );
+	},
+	
+	testGetContainingBlockFixed : function() {
+	    var testNode = document.getElementById( "testNode" ),
+	        expected = null;
+	    testNode.style.position = "fixed";
+	    var cb = dom.getContainingBlock( testNode );
+	
+	    Assert.areEqual( null, cb );
+	},
+	
+	testGetContainingBlockFixedContainer : function() {
+	    var testNode = document.getElementById( "testNode" ),
+	        expected = document.getElementById('container');
+	    expected.style.position = "fixed";
+	    var cb = dom.getContainingBlock( testNode );
+	
+	    Assert.areEqual( expected, cb );
+	},
+	
+	testGetContainingBlockBody : function() {
+	    var cb = dom.getContainingBlock( document.body );
+	
+	    Assert.areEqual( document.documentElement, cb );
+	},
+	
+	testGetContainingBlockRoot : function() {
+	    var cb = dom.getContainingBlock( document.documentElement );
+	
+	    Assert.areEqual( null, cb, "containing block not null" );
+	}
+});
+//create the logger
+var logger = new YAHOO.tool.TestLogger("testLogger");
+YAHOO.tool.TestRunner.add( getStyleTestCase );
+YAHOO.tool.TestRunner.add( getContainingBlockTestCase );
+
+// run the tests, or put them in the TestRunner.
+if (parent && parent != window) {
+    YAHOO.tool.TestManager.load();
+} else {
+    YAHOO.tool.TestRunner.run();
+}
+};
+</script>
+
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+	<title>Calendar</title>
+<link rel="stylesheet" type="text/css" href="../../../build/widget/Calendar/css/Calendar.css">
+<style type="text/css">
+    html {
+        background: #8bf;
+    }
+
+    label {
+        font: 15px Tahoma, sans-serif;
+        float: left;
+    }
+
+    #sf {
+        z-index: 1;
+     }
+     
+     .ape-calendar-container{
+         width: 17em;
+     }
+</style>
+
+</head>
+<body>
+
+<div class="ape-calendar-container" id="start-container">
+    <label for="start" id='sf'>Start (YYYY-MM-DD)</label>
+    <input id="start" name="start" type="date" class="ape-calendar-input">
+</div>
+
+<div class="ape-calendar-container" id="end-container">
+    <label for="end">End (YYYY-MM-DD) </label>
+    <input id="end" type="date" class="ape-calendar-input">
+</div>
+
+<script src="../../../build/ape-ep-dom-min.js" type="text/javascript"></script>
+
+<script src="../../../build/anim/anim.js" type="text/javascript"></script>
+<script src="../../../build/widget/DelegateFactory.js" type="text/javascript"></script>
+<script src="../../../build/widget/Calendar/Calendar.js" type="text/javascript"></script>
+<script src="../../../build/widget/Calendar/Calendar_en.js" type="text/javascript"></script>
+<script type="text/javascript">
+APE.widget.Calendar.addDelegateFor("start", {useAnim: false});
+APE.widget.Calendar.addDelegateFor("end");
+</script>
+<p style="clear:both">the first calendar has <code>useAnim : false</code>, the second does not, 
+so it gets default animation.
+</p>
+</body>
+</html>

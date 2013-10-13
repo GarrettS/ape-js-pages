@@ -1,0 +1,99 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+   "http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+    <title>APE.dom Constants Test</title>
+
+    <link rel="stylesheet" type="text/css" href="../../yui-test/build/logger/assets/logger.css">
+    <link rel="stylesheet" type="text/css" href="../../yui-test/assets/testlogger.css">
+
+    <script type="text/javascript" src="../../yui-test/build/yahoo-dom-event/yahoo-dom-event.js"></script>
+    <script type="text/javascript" src="../../yui-test/build/logger/logger.js"></script>
+    <script type="text/javascript" src="../../yui-test/build/yuitest/yuitest-beta.js"></script>
+
+    <script type="text/javascript" src="../../../build/APE.js"></script>
+    <script type="text/javascript" src="../../../build/dom/constants.js"></script>
+
+<style type="text/css">
+iframe {
+    z-index: 0;
+    position:absolute;
+}
+</style>
+</head>
+<body>
+<iframe name="iframeQuirks" src="quirks.html"></iframe>
+<iframe name="iframeStandards" src="standards.html"></iframe>
+<!--  This causes IE's to prompt for download/open 
+iframe name="iframeXML" src="xml.html"></iframe -->
+
+<div id="testLogger" style="margin-top: 30px"></div><!-- In IE, a relatively positioned descendant gets position offset by font-size! -->
+<script type="text/javascript">
+onload = function() {
+
+var Assert = YAHOO.util.Assert,
+    TestCase = YAHOO.tool.TestCase,
+    dom = APE.dom;
+
+var domconstants = new TestCase({
+    name : "constants.js",
+   
+    _should : {
+    	ignore : {
+	        // Feature removed. Blackberry9000 
+	        // does not support textContent or innerText.
+	        testTextContent : true
+		}
+	},
+	
+    testTextContent : function() {
+        var n = document.createElement('div');
+        n[dom.TEXT_CONTENT] = "foo";
+        Assert.areSame("foo", n.innerHTML);
+    },
+
+    testIsComputedStyle : function() {
+        Assert.isTypeOf("boolean", dom.IS_COMPUTED_STYLE_SUPPORTED);
+    },
+
+    testOwnerDocument : function() {
+        Assert.areSame(document, document.body[dom.OWNER_DOCUMENT]);
+    },
+
+    testHTMLDocNotQuirks : function() {
+        var iframeStandards = frames['iframeStandards'],
+            constants = APE.dom.getConstants(iframeStandards.document);
+        Assert.isFalse(constants.IS_QUIRKS_MODE);
+    },
+
+    testQuirksDoc : function() {
+        var iframeQuirks = frames['iframeQuirks'],
+            constants = APE.dom.getConstants(iframeQuirks.document);
+        Assert.isTrue(constants.IS_QUIRKS_MODE);
+    },
+
+    testXMLDocIS_XML_DOM : function() {
+       // loading this frame causes errors in IE versions.
+       // var iframeXml = frames['iframeXML'],
+       // constants = APE.dom.getConstants(iframeXml.document);
+        Assert.isTypeOf("boolean", APE.dom.IS_XML_DOM);
+    },
+
+    testIsScrollSupported : function() {
+        Assert.isTypeOf("boolean", APE.dom.IS_SCROLL_SUPPORTED);
+    }
+});
+var logger = new YAHOO.tool.TestLogger("testLogger");
+YAHOO.tool.TestRunner.add( domconstants );
+
+// run the tests, or put them in the TestRunner.
+if (parent && parent != window) {
+    YAHOO.tool.TestManager.load();
+} else {
+    YAHOO.tool.TestRunner.run();
+}
+};
+</script>
+</body>
+</html>

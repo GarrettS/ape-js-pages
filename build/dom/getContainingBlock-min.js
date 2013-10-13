@@ -1,0 +1,1 @@
+APE.namespace("APE.dom");(function(){var C=APE.dom,B="position";C.getContainingBlock=A;function A(F){var H=C.getStyle(F,B),D=F[C.OWNER_DOCUMENT],G=D.documentElement,E=F.parentNode;if(!E||F===G||H==="fixed"){return null}if(/^(?:r|s)/.test(H)||!H){return E}while(E&&E!=G){if(A(E,B)!=="static"){return E}E=E.parentNode}return G}})();

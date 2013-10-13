@@ -1,0 +1,115 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+    <title>Mouse test</title>
+    
+    <script src="../../../build/domunit/domunit.js" type="text/javascript"></script>    
+    <link type="text/css" rel="stylesheet" href="../../../build/test/css/TestReporter.css">
+    
+</head>
+<body style="margin: 0">
+<div id="shim" style="height: 3000px;float: left"></div>
+<div id="testNode" style="height: 200px; position: relative; background: #ccf">-</div>
+<script type="text/javascript">
+function testMouse() {
+    var test = APE.test,
+        TestRunner = test.TestRunner,
+        Assert = test.Assert,
+        cond = test.NativeConstraints,
+        Mouse = APE.eventsynth.Mouse,
+        Constraints = test.NativeConstraints,
+        testNode = document.getElementById("testNode");
+
+    var mouseTestCase = {
+
+        name : "click testcase",
+
+        setUp : function() {
+            window.scrollTo(0, 0);
+        },
+        
+        tearDown : function() {
+            testNode.onclick = testNode.onmousedown = testNode.onmouseup;
+        },
+        
+        'test target' : function() {
+        	var target;
+        	testNode.onclick = function(ev) {
+        		target = ev ? ev.target : window.event.srcElement;
+        	};
+        	Mouse.click(testNode);
+            TestRunner.assert(Constraints.areSame(target, testNode));
+        },
+        
+        'test pageY where pageY is present' : function() {
+            var pageY;
+            testNode.onclick = function(ev) {
+            	if(ev) {
+                   pageY = ev.pageY;
+            	}
+            };
+            window.scrollTo(10, 10);
+            // Assertion delayed for Opera and IE which do update 
+            // pageXOffset/scrollTop asynchronously.
+           	TestRunner.wait(function() {
+                Mouse.click(testNode, {clientY : 10} );
+                if(typeof pageY != "number") {
+                    TestRunner.exitEarly('Ignored. typeof pageY != "number".');
+                }
+                TestRunner.assert(Constraints.areSame(pageY, 20));
+           	}, 300);
+        }
+    };
+    
+    var mouseoverTestCase = {
+            name : "mouseover",
+            
+            tearDown : function() {
+                testNode.onmouseover = testNode.onmouseout = testNode.onmousemove = 
+                document.onmouseover = null;
+            },
+            
+            'test offsetY where offsetY is present' : function() {
+                var offsetY;
+                testNode.onmouseover = function(ev) {
+                    offsetY = ev && ev.offsetY;
+                };
+                window.scrollTo(0, 10);
+                                
+                TestRunner.wait(function() {
+                    Mouse.mouseover(testNode, {clientY : 10} );
+                    if(typeof offsetY != "number") {
+                        TestRunner.exitEarly('Ignored. typeof offsetY != "number".');
+                    }
+                    TestRunner.assert(Constraints.areSame(offsetY, 20));
+                }, 100);
+            },
+
+            'test bubbles (default true)' : function() {
+                var gotBubble = false;
+                document.onmouseover = function() {
+                    gotBubble = true;
+                };
+                Mouse.mouseover(testNode);
+                TestRunner.assert(Constraints.isTrue(gotBubble, "Event did not bubble up."));
+            },
+            
+            'test bubbles = false' : function() {
+                var gotBubble = false;
+                document.onmouseover = function() {
+                    gotBubble = true;
+                };
+                Mouse.mouseover(testNode, {bubbles : false} );
+                TestRunner.assert(Constraints.isFalse(gotBubble, "Event bubbled up."));
+            }
+    };
+    
+    TestRunner.runTests([mouseTestCase, mouseoverTestCase]);    
+};
+
+testMouse();
+</script>
+</body>
+</html>
